@@ -212,7 +212,7 @@ func processCodeBlock(w io.Writer, codeBlock *ast.FencedCodeBlock, mdContent []b
 		fmt.Fprintf(w, "\n> Output: %s", out)
 	case "x":
 		// Use a special error value to signal exit.
-		return fmt.Errorf("exit")
+		return nil
 	}
 	return nil
 }
