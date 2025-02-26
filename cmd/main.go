@@ -3,12 +3,22 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/seanblong/readmerunner" // adjust the import path as needed
 )
+
+// DefaultPrompt reads a line from the provided reader after printing msg.
+// This is primarily for testing purposes to mock user input.
+func defaultPrompt(reader *bufio.Reader, msg string) string {
+	fmt.Print(msg)
+	input, _ := reader.ReadString('\n')
+	return strings.TrimSpace(input)
+}
 
 func main() {
 	var (
@@ -53,7 +63,7 @@ func main() {
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 		promptFunc := func(msg string) string {
-			return readmerunner.DefaultPrompt(reader, msg)
+			return defaultPrompt(reader, msg)
 		}
 		err = readmerunner.RunMarkdown(mdContent, startAnchor, multiOut, promptFunc)
 		if err != nil {
