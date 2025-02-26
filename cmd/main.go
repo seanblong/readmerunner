@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -37,7 +36,7 @@ func main() {
 	// Open the log file for appending. Create it if it doesn't exist.
 	logF, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println("Error opening log file:", err)
+		log.Println("Error opening log file:", err)
 		os.Exit(1)
 	}
 	defer logF.Close()
@@ -48,7 +47,7 @@ func main() {
 	if tocFlag {
 		err = readmerunner.PrintTOC(multiOut, mdContent)
 		if err != nil {
-			fmt.Println("Error printing TOC:", err)
+			log.Println("Error printing TOC:", err)
 			os.Exit(1)
 		}
 	} else {
@@ -58,7 +57,7 @@ func main() {
 		}
 		err = readmerunner.RunMarkdown(mdContent, startAnchor, multiOut, promptFunc)
 		if err != nil {
-			fmt.Println("Error running markdown:", err)
+			log.Println("Error running markdown:", err)
 			os.Exit(1)
 		}
 	}
