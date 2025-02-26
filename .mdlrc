@@ -1,0 +1,2 @@
+rulesets ['ci/custom-rules.rb']
+style 'ci/markdown-style.rb'
