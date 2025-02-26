@@ -25,7 +25,7 @@ func TestGetRunner(t *testing.T) {
 		supported bool
 	}{
 		{"bash", true},
-		{"python", true},
+		{"python", false},
 		{"go", false},
 		{"", false},
 	}
@@ -184,5 +184,32 @@ Oh no, a match!
 				t.Errorf("Expected output to not contain %q, but got %q", tt.notContain, output)
 			}
 		})
+	}
+}
+
+func TestComplexMarkdown(t *testing.T) {
+	mdContent := []byte(`# Title
+- item1
+- item2
+
+More text.
+No newline.
+
+## Subheader
+
+> Quote section
+> More content
+`)
+
+	var buf bytes.Buffer
+	prompt := fakePrompt([]string{"", "exit"})
+	err := RunMarkdown(mdContent, "", &buf, prompt)
+	if err != nil {
+		t.Errorf("RunMarkdown returned error: %v", err)
+	}
+	got := buf.String()
+	want := "\n# Title\n\n- item1\n- item2\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
+	if got != want {
+		t.Errorf("RunMarkdown output mismatch.\nGot:\n%s\nWant:\n%s", got, want)
 	}
 }
