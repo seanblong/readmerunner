@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
 // fakePrompt returns predetermined responses from a slice.
@@ -25,6 +29,8 @@ func TestGetRunner(t *testing.T) {
 		supported bool
 	}{
 		{"bash", true},
+		{"sh", true},
+		{"shell", true},
 		{"python", false},
 		{"go", false},
 		{"", false},
@@ -40,7 +46,7 @@ func TestGetRunner(t *testing.T) {
 }
 
 func TestBashRunnerRun(t *testing.T) {
-	br := &BashRunner{}
+	br, _ := NewBashRunner()
 	output, err := br.Run("echo hello")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -107,6 +113,55 @@ func TestRunMarkdownCodeBlock(t *testing.T) {
 				} else {
 					t.Error("Expected code execution to not run, but got 'Output: hello world'")
 				}
+			}
+		})
+	}
+}
+
+// extractCodeBlock is a helper to extract the first fenced code block from markdown.
+func extractCodeBlock(mdContent []byte) *ast.FencedCodeBlock {
+	md := goldmark.New()
+	doc := md.Parser().Parse(text.NewReader(mdContent))
+	var cb *ast.FencedCodeBlock
+	err := ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if n.Kind() == ast.KindFencedCodeBlock && entering {
+			cb = n.(*ast.FencedCodeBlock)
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	return cb
+}
+
+func TestProcessCodeBlock(t *testing.T) {
+	tc := []struct {
+		name            string
+		mdContent       []byte
+		promptResponses []string
+		expectedOutput  string
+	}{
+		{"Run Code Block", []byte("```bash\necho hello\n```"), []string{"r"}, "Output: hello"},
+		{"Unknown Language", []byte("```unknown\necho hello\n```"), []string{"r"}, "No runner for language: unknown"},
+		{"Missing Language", []byte("```\necho hello\n```"), []string{"r"}, "No runner for language: "},
+		{"Skip Code Block", []byte("```bash\necho hello\n```"), []string{"s"}, ""},
+		{"Exit Code Block", []byte("```bash\necho hello\n```"), []string{"x"}, ""},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			prompt := fakePrompt(tt.promptResponses)
+			codeBlock := extractCodeBlock(tt.mdContent)
+			err := processCodeBlock(&buf, codeBlock, tt.mdContent, prompt)
+			if err != nil {
+				t.Errorf("processCodeBlock returned error: %v", err)
+			}
+			output := buf.String()
+			if !strings.Contains(output, tt.expectedOutput) {
+				t.Errorf("Expected output to contain %q, but got %q", tt.expectedOutput, output)
 			}
 		})
 	}
@@ -190,7 +245,11 @@ Oh no, a match!
 func TestComplexMarkdown(t *testing.T) {
 	mdContent := []byte(`# Title
 - item1
+   - subitem1
+   - subitem2
 - item2
+  1. ordered
+  1. ordered 2
 
 More text.
 No newline.
@@ -208,7 +267,7 @@ No newline.
 		t.Errorf("RunMarkdown returned error: %v", err)
 	}
 	got := buf.String()
-	want := "\n# Title\n\n- item1\n- item2\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
+	want := "\n# Title\n\n- item1\n  - subitem1\n  - subitem2\n\n- item2\n  1. ordered\n  2. ordered 2\n\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
 	if got != want {
 		t.Errorf("RunMarkdown output mismatch.\nGot:\n%s\nWant:\n%s", got, want)
 	}
