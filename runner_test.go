@@ -25,6 +25,8 @@ func TestGetRunner(t *testing.T) {
 		supported bool
 	}{
 		{"bash", true},
+		{"sh", true},
+		{"shell", true},
 		{"python", false},
 		{"go", false},
 		{"", false},
@@ -40,7 +42,7 @@ func TestGetRunner(t *testing.T) {
 }
 
 func TestBashRunnerRun(t *testing.T) {
-	br := &BashRunner{}
+	br, _ := NewBashRunner()
 	output, err := br.Run("echo hello")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
