@@ -25,6 +25,8 @@ func TestGetRunner(t *testing.T) {
 		supported bool
 	}{
 		{"bash", true},
+		{"sh", true},
+		{"shell", true},
 		{"python", false},
 		{"go", false},
 		{"", false},
@@ -40,7 +42,7 @@ func TestGetRunner(t *testing.T) {
 }
 
 func TestBashRunnerRun(t *testing.T) {
-	br := &BashRunner{}
+	br, _ := NewBashRunner()
 	output, err := br.Run("echo hello")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -190,6 +192,8 @@ Oh no, a match!
 func TestComplexMarkdown(t *testing.T) {
 	mdContent := []byte(`# Title
 - item1
+   - subitem1
+   - subitem2
 - item2
 
 More text.
@@ -208,7 +212,7 @@ No newline.
 		t.Errorf("RunMarkdown returned error: %v", err)
 	}
 	got := buf.String()
-	want := "\n# Title\n\n- item1\n- item2\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
+	want := "\n# Title\n\n- item1\n  - subitem1\n  - subitem2\n\n- item2\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
 	if got != want {
 		t.Errorf("RunMarkdown output mismatch.\nGot:\n%s\nWant:\n%s", got, want)
 	}
