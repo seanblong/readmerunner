@@ -148,17 +148,9 @@ func renderList(w io.Writer, list *ast.List, mdContent []byte, indent string) {
 	}
 }
 
-// RunMarkdown iterates through the markdown content grouped by section.
-// A section is defined as a header and all content until the next header.
-// It writes the section’s content to w and uses promptFunc to get user input.
-// Prompts are printed with newlines before and after.
-// Code blocks are handled interactively (prompting for run/skip/exit).
-// Instead of calling os.Exit, it stops processing when the user types "exit".
-func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc func(string) string) error {
-	md := goldmark.New()
-	doc := md.Parser().Parse(text.NewReader(mdContent))
-
-	// Group nodes into sections (each section is a slice of ast.Node)
+// groupSections splits the document into sections.
+// Each section is a slice of ast.Node that starts with a heading (or content before any heading).
+func groupSections(doc ast.Node) [][]ast.Node {
 	var sections [][]ast.Node
 	var currentSection []ast.Node
 
@@ -169,7 +161,6 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 			}
 			currentSection = []ast.Node{n}
 		} else {
-			// Content before any heading becomes its own section.
 			if currentSection == nil {
 				currentSection = []ast.Node{n}
 			} else {
@@ -180,21 +171,88 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 	if len(currentSection) > 0 {
 		sections = append(sections, currentSection)
 	}
+	return sections
+}
 
-	// If a start anchor is provided, skip sections until it is found.
-	started := startAnchor == ""
-	for i, section := range sections {
-		// If the section starts with a heading, check for the start anchor.
-		if len(section) > 0 && section[0].Kind() == ast.KindHeading {
-			heading := section[0].(*ast.Heading)
-			var headerText strings.Builder
-			for c := heading.FirstChild(); c != nil; c = c.NextSibling() {
-				if textNode, ok := c.(*ast.Text); ok {
-					headerText.Write(textNode.Segment.Value(mdContent))
+// getHeadingText extracts the text content from a heading node.
+func getHeadingText(heading *ast.Heading, mdContent []byte) string {
+	var sb strings.Builder
+	for c := heading.FirstChild(); c != nil; c = c.NextSibling() {
+		if textNode, ok := c.(*ast.Text); ok {
+			sb.Write(textNode.Segment.Value(mdContent))
+		}
+	}
+	return sb.String()
+}
+
+// processCodeBlock handles a fenced code block: prints it, prompts the user, and runs it if requested.
+func processCodeBlock(w io.Writer, codeBlock *ast.FencedCodeBlock, mdContent []byte, promptFunc func(string) string) error {
+	language := string(codeBlock.Language(mdContent))
+	var codeText strings.Builder
+	for i := 0; i < codeBlock.Lines().Len(); i++ {
+		line := codeBlock.Lines().At(i)
+		codeText.Write(line.Value(mdContent))
+	}
+	fmt.Fprintf(w, "\n```%s\n%s```\n", language, codeText.String())
+	choice := strings.ToLower(strings.TrimSpace(promptFunc("\n> Run code? (r=run, s=skip, x=exit) [default s]: ")))
+	switch choice {
+	case "r":
+		runner := GetRunner(language)
+		if runner == nil {
+			fmt.Fprintf(w, "No runner for language: %s\n", language)
+			return nil
+		}
+		out, err := runner.Run(codeText.String())
+		if err != nil {
+			fmt.Fprintf(w, "\n> Error: %s", err.Error())
+		}
+		if out == "" {
+			out = "(no output)\n"
+		}
+		fmt.Fprintf(w, "\n> Output: %s", out)
+	case "x":
+		// Use a special error value to signal exit.
+		return fmt.Errorf("exit")
+	}
+	return nil
+}
+
+// processSection processes all nodes within a single section.
+func processSection(section []ast.Node, mdContent []byte, w io.Writer, promptFunc func(string) string) error {
+	for _, n := range section {
+		switch n.Kind() {
+		case ast.KindHeading:
+			renderHeader(w, n.(*ast.Heading), mdContent)
+		case ast.KindFencedCodeBlock:
+			if err := processCodeBlock(w, n.(*ast.FencedCodeBlock), mdContent, promptFunc); err != nil {
+				if err.Error() == "exit" {
+					return err
 				}
 			}
-			normalized := normalizeAnchor(headerText.String())
-			if !started && normalized == startAnchor {
+		case ast.KindList:
+			list := n.(*ast.List)
+			renderList(w, list, mdContent, "")
+		default:
+			renderNodeContent(w, n, mdContent)
+		}
+	}
+	return nil
+}
+
+// RunMarkdown is the top-level function that iterates through sections, processes each,
+// and prompts the user between sections.
+func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc func(string) string) error {
+	md := goldmark.New()
+	doc := md.Parser().Parse(text.NewReader(mdContent))
+	sections := groupSections(doc)
+
+	started := startAnchor == ""
+	for i, section := range sections {
+		// If the section starts with a heading, check its normalized anchor.
+		if len(section) > 0 && section[0].Kind() == ast.KindHeading {
+			heading := section[0].(*ast.Heading)
+			headerText := getHeadingText(heading, mdContent)
+			if !started && normalizeAnchor(headerText) == startAnchor {
 				started = true
 			}
 		}
@@ -202,73 +260,27 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 			continue
 		}
 
-		// Process the entire section.
-		for _, n := range section {
-			switch n.Kind() {
-			case ast.KindHeading:
-				heading := n.(*ast.Heading)
-				renderHeader(w, heading, mdContent)
-			case ast.KindFencedCodeBlock:
-				codeBlock := n.(*ast.FencedCodeBlock)
-				language := string(codeBlock.Language(mdContent))
-
-				var codeText strings.Builder
-				for i := 0; i < codeBlock.Lines().Len(); i++ {
-					line := codeBlock.Lines().At(i)
-					codeText.Write(line.Value(mdContent))
-				}
-				// Print the code block with markdown formatting.
-				fmt.Fprintf(w, "\n```%s\n%s```\n", language, codeText.String())
-				// Prompt the user immediately after printing the code block.
-				choice := promptFunc("\n> Run code? (r=run, s=skip, x=exit) [default s]: ")
-				choice = strings.ToLower(strings.TrimSpace(choice))
-				switch choice {
-				case "r":
-					runner := GetRunner(language)
-					if runner == nil {
-						fmt.Fprintf(w, "No runner for language: %s\n", language)
-						continue
-					}
-					out, err := runner.Run(codeText.String())
-					if err != nil {
-						fmt.Fprintf(w, "\n> Error: %s", err.Error())
-					}
-					if out == "" {
-						out = "(no output)\n"
-					}
-					fmt.Fprintf(w, "\n> Output: %s", out)
-				case "x":
-					return nil
-					// default: skip code block execution.
-				}
-			case ast.KindList:
-				list := n.(*ast.List)
-				renderList(w, list, mdContent, "")
-			default:
-				renderNodeContent(w, n, mdContent)
+		// Process the current section.
+		if err := processSection(section, mdContent, w, promptFunc); err != nil {
+			if err.Error() == "exit" {
+				return nil
 			}
+			return err
 		}
 
-		// Default prompt heading, ideally prompt with next section heading.
-		var promptMsg = "\n> Press Enter to continue (or type 'exit'): "
+		// Build prompt message for the next section.
+		promptMsg := "\n> Press Enter to continue (or type 'exit'): "
 		if i < len(sections)-1 {
 			nextSection := sections[i+1]
 			if len(nextSection) > 0 && nextSection[0].Kind() == ast.KindHeading {
 				heading := nextSection[0].(*ast.Heading)
-				var nextHeaderText strings.Builder
-				for c := heading.FirstChild(); c != nil; c = c.NextSibling() {
-					if textNode, ok := c.(*ast.Text); ok {
-						nextHeaderText.Write(textNode.Segment.Value(mdContent))
-					}
-				}
-				promptMsg = fmt.Sprintf("\n> Press Enter to continue to [%s] (or type 'exit'): ", nextHeaderText.String())
+				nextHeaderText := getHeadingText(heading, mdContent)
+				promptMsg = fmt.Sprintf("\n> Press Enter to continue to [%s] (or type 'exit'): ", nextHeaderText)
 			}
 		}
-
 		if strings.ToLower(promptFunc(promptMsg)) == "exit" {
 			return nil
 		}
-		// If this is the last section and user did not exit, print final message.
 		if i == len(sections)-1 {
 			fmt.Fprintln(w, "\n> README complete!")
 		}
