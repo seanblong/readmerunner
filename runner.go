@@ -29,11 +29,25 @@ func (r *BashRunner) Run(code string) (string, error) {
 	return string(out), err
 }
 
+// PythonRunner implements CodeRunner for Python.
+type PythonRunner struct{}
+
+// Run executes the given Python code via the Python interpreter.
+func (r *PythonRunner) Run(code string) (string, error) {
+	cmd := exec.Command("python", "-c", code)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
 // GetRunner returns a CodeRunner based on the provided language.
-// For now only "bash" is supported; non-executable languages return nil.
+// For now only "bash" and "python" are supported, but this can be extended.
+// Fences without a language will be ignored.
 func GetRunner(lang string) CodeRunner {
-	if lang == "bash" {
+	switch lang {
+	case "bash":
 		return &BashRunner{}
+	case "python":
+		return &PythonRunner{}
 	}
 	return nil
 }
@@ -42,20 +56,19 @@ func GetRunner(lang string) CodeRunner {
 // It converts the text to lowercase, removes non-alphanumeric characters (except spaces),
 // and replaces spaces with dashes
 func normalizeAnchor(header string) string {
-	// Convert to lowercase.
-	header = strings.ToLower(header)
+	lower := strings.ToLower(header)
 	// Remove non-alphanumeric characters (allow spaces).
 	var b strings.Builder
-	for _, r := range header {
+	for _, r := range lower {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' {
 			b.WriteRune(r)
 		}
 	}
-	// Replace spaces with dashes.
 	anchor := strings.ReplaceAll(b.String(), " ", "-")
 	// Optionally, collapse multiple dashes (if needed).
 	re := regexp.MustCompile("-+")
 	anchor = re.ReplaceAllString(anchor, "-")
+
 	return anchor
 }
 
@@ -81,10 +94,83 @@ func PrintTOC(w io.Writer, mdContent []byte) error {
 }
 
 // DefaultPrompt reads a line from the provided reader after printing msg.
+// This is primarily for testing purposes to mock user input.
 func DefaultPrompt(reader *bufio.Reader, msg string) string {
 	fmt.Print(msg)
 	input, _ := reader.ReadString('\n')
 	return strings.TrimSpace(input)
+}
+
+// renderHeader prints a markdown header with its level and text.
+func renderHeader(w io.Writer, n *ast.Heading, mdContent []byte) {
+	var headerText strings.Builder
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if textNode, ok := c.(*ast.Text); ok {
+			headerText.Write(textNode.Segment.Value(mdContent))
+		}
+	}
+	hashes := strings.Repeat("#", n.Level)
+	fmt.Fprintf(w, "\n%s %s\n", hashes, headerText.String())
+}
+
+// renderNodeContent recursively prints the content of a generic node, e.g, text
+func renderNodeContent(w io.Writer, n ast.Node, mdContent []byte) {
+	switch n.Kind() {
+	case ast.KindText:
+		textNode := n.(*ast.Text)
+		fmt.Fprint(w, string(textNode.Segment.Value(mdContent)))
+	case ast.KindListItem:
+		listItem := n.(*ast.ListItem)
+		if listItem.HasChildren() {
+			for c := listItem.FirstChild(); c != nil; c = c.NextSibling() {
+				renderNodeContent(w, c, mdContent)
+			}
+		}
+	case ast.KindTextBlock:
+		textBlock := n.(*ast.TextBlock)
+		if textBlock.HasChildren() {
+			for c := textBlock.FirstChild(); c != nil; c = c.NextSibling() {
+				renderNodeContent(w, c, mdContent)
+			}
+		}
+	case ast.KindParagraph:
+		var content strings.Builder
+		if n.HasChildren() {
+			for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+				if textNode, ok := c.(*ast.Text); ok {
+					// Append a space when long lines are split with single enter.
+					content.WriteString(fmt.Sprintf("%s", string(textNode.Segment.Value(mdContent))))
+				}
+			}
+		}
+		if content.Len() > 0 {
+			fmt.Fprintf(w, "\n%s\n", content.String())
+		}
+	default:
+		return
+	}
+}
+
+// renderList handles both ordered and unordered lists by iterating over each list item.
+// If a list item consists solely of a single paragraph, its inline text is rendered on the same line.
+func renderList(w io.Writer, list *ast.List, mdContent []byte, indent string) {
+	index := 1
+	for li := list.FirstChild(); li != nil; li = li.NextSibling() {
+		if li.Kind() == ast.KindListItem {
+			var bullet string
+			if list.IsOrdered() {
+				bullet = fmt.Sprintf("%d.", index)
+				index++
+			} else {
+				bullet = "-"
+			}
+			// Print bullet with provided indent.
+			fmt.Fprintf(w, "%s%s ", indent, bullet)
+			renderNodeContent(w, li, mdContent)
+
+			fmt.Fprintln(w)
+		}
+	}
 }
 
 // RunMarkdown iterates through the markdown content grouped by section.
@@ -146,18 +232,11 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 			switch n.Kind() {
 			case ast.KindHeading:
 				heading := n.(*ast.Heading)
-				hashes := strings.Repeat("#", heading.Level)
-				var headerText strings.Builder
-				for c := heading.FirstChild(); c != nil; c = c.NextSibling() {
-					if textNode, ok := c.(*ast.Text); ok {
-						headerText.Write(textNode.Segment.Value(mdContent))
-					}
-				}
-				// Print heading with a preceding newline.
-				fmt.Fprintf(w, "\n%s %s\n\n", hashes, headerText.String())
+				renderHeader(w, heading, mdContent)
 			case ast.KindFencedCodeBlock:
 				codeBlock := n.(*ast.FencedCodeBlock)
 				language := string(codeBlock.Language(mdContent))
+
 				var codeText strings.Builder
 				for i := 0; i < codeBlock.Lines().Len(); i++ {
 					line := codeBlock.Lines().At(i)
@@ -184,19 +263,24 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 					return nil
 					// default: skip code block execution.
 				}
+			case ast.KindList:
+				// Render lists using the helper function.
+				list := n.(*ast.List)
+				renderList(w, list, mdContent, "")
 			default:
+				renderNodeContent(w, n, mdContent)
 				// For paragraphs or other text, print their content.
-				var content strings.Builder
-				if n.HasChildren() {
-					for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-						if textNode, ok := c.(*ast.Text); ok {
-							content.Write(textNode.Segment.Value(mdContent))
-						}
-					}
-				}
-				if content.Len() > 0 {
-					fmt.Fprintln(w, content.String())
-				}
+				// var content strings.Builder
+				// if n.HasChildren() {
+				// 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+				// 		if textNode, ok := c.(*ast.Text); ok {
+				// 			content.Write(textNode.Segment.Value(mdContent))
+				// 		}
+				// 	}
+				// }
+				// if content.Len() > 0 {
+				// 	fmt.Fprintf(w, "\n%s \n", content.String())
+				// }
 			}
 		}
 
