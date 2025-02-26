@@ -5,9 +5,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/seanblong/readmerunner)](https://goreportcard.com/report/github.com/seanblong/readmerunner)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/seanblong/readmerunner/main.svg)](https://results.pre-commit.ci/latest/github/seanblong/readmerunner/main)
 
-Readme Runner is a tool to traverse a README file section by section and optionally
-execute code snippets.  It is designed to make executing runbooks and workflows
-easier as well as encourage better documentation.
+Readme Runner is a tool to traverse a README file one section at a time and optionally
+execute code snippets.  It is designed to simplify executing runbooks and workflows
+and encourage better documentation.
 
 ## Installing
 
@@ -19,7 +19,7 @@ go install github.com/seanblong/embedmd@latest
 
 ### From Binary
 
-Download the latest binary from the [releases page](https://github.com/seanblong/readmerunner).
+Download the latest binary from the [releases page][2].
 
 ## Building
 
@@ -55,7 +55,9 @@ Usage: readme-runner [options] <README.md>
         Print table of contents
 ```
 
-### Example
+### Examples
+
+Basic execution:
 
 ```console
 ❯ ./readmerunner ./README.md
@@ -83,5 +85,32 @@ go install github.com/seanblong/embedmd@latest
 > Press Enter to continue to [From Binary] (or type 'exit'):
 ```
 
+Printing the table of contents:
+
+```console
+❯ ./readmerunner -toc ./README.md
+- Readme Runner (readme-runner)
+  - Installing (installing)
+    - From Source (from-source)
+    - From Binary (from-binary)
+  - Building (building)
+  - Usage (usage)
+    - Full Usage (full-usage)
+    - Example (example)
+```
+
+Running from a specific section:
+
+```console
+❯ ./readmerunner -start from-binary ./README.md
+
+### From Binary
+
+Download the latest binary from the [releases page][2].
+
+> Press Enter to continue to [Building] (or type 'exit'):
+```
+
 <!-- links -->
 [1]: https://gist.github.com/asabaylus/3071099
+[2]: https://github.com/seanblong/readmerunner/releases
