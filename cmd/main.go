@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/seanblong/readmerunner" // adjust the import path as needed
+	"github.com/seanblong/readmerunner"
 )
 
 // DefaultPrompt reads a line from the provided reader after printing msg.
