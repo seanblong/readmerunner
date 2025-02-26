@@ -29,27 +29,16 @@ func (r *BashRunner) Run(code string) (string, error) {
 	return string(out), err
 }
 
-// PythonRunner implements CodeRunner for Python.
-type PythonRunner struct{}
-
-// Run executes the given Python code via the Python interpreter.
-func (r *PythonRunner) Run(code string) (string, error) {
-	cmd := exec.Command("python", "-c", code)
-	out, err := cmd.CombinedOutput()
-	return string(out), err
-}
-
 // GetRunner returns a CodeRunner based on the provided language.
-// For now only "bash" and "python" are supported, but this can be extended.
+// For now only "bash" is supported, but this can be extended, e.g. Python, Ruby.
 // Fences without a language will be ignored.
 func GetRunner(lang string) CodeRunner {
 	switch lang {
 	case "bash":
 		return &BashRunner{}
-	case "python":
-		return &PythonRunner{}
+	default:
+		return nil
 	}
-	return nil
 }
 
 // normalizeAnchor converts a header string into a markdown anchor.
@@ -113,39 +102,60 @@ func renderHeader(w io.Writer, n *ast.Heading, mdContent []byte) {
 	fmt.Fprintf(w, "\n%s %s\n", hashes, headerText.String())
 }
 
-// renderNodeContent recursively prints the content of a generic node, e.g, text
-func renderNodeContent(w io.Writer, n ast.Node, mdContent []byte) {
+func renderBaseContent(w io.Writer, n ast.Node, mdContent []byte) {
 	switch n.Kind() {
 	case ast.KindText:
 		textNode := n.(*ast.Text)
 		fmt.Fprint(w, string(textNode.Segment.Value(mdContent)))
+	default:
+		if n.Lines() != nil && n.Lines().Len() > 0 {
+			for i := 0; i < n.Lines().Len(); i++ {
+				line := n.Lines().At(i)
+				fmt.Fprint(w, string(line.Value(mdContent)))
+			}
+		}
+	}
+}
+
+// renderNodeContent recursively prints the content of a generic node, e.g, text
+func renderNodeContent(w io.Writer, n ast.Node, mdContent []byte) {
+	switch n.Kind() {
 	case ast.KindListItem:
 		listItem := n.(*ast.ListItem)
 		if listItem.HasChildren() {
 			for c := listItem.FirstChild(); c != nil; c = c.NextSibling() {
-				renderNodeContent(w, c, mdContent)
+				renderBaseContent(w, c, mdContent)
 			}
 		}
-	case ast.KindTextBlock:
-		textBlock := n.(*ast.TextBlock)
-		if textBlock.HasChildren() {
-			for c := textBlock.FirstChild(); c != nil; c = c.NextSibling() {
-				renderNodeContent(w, c, mdContent)
-			}
-		}
-	case ast.KindParagraph:
-		var content strings.Builder
-		if n.HasChildren() {
-			for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-				if textNode, ok := c.(*ast.Text); ok {
-					// Append a space when long lines are split with single enter.
-					content.WriteString(fmt.Sprintf("%s", string(textNode.Segment.Value(mdContent))))
+	case ast.KindBlockquote:
+		// renderBlockquote handles block quote nodes by rendering each child and prefixing each line with "> ".
+		bq := n.(*ast.Blockquote)
+		// Iterate over children of the blockquote.
+		fmt.Fprintln(w)
+		for c := bq.FirstChild(); c != nil; c = c.NextSibling() {
+			// Capture the rendered content in a temporary buffer.
+			var buf strings.Builder
+			renderBaseContent(&buf, c, mdContent)
+			// Split the content by newlines.
+			lines := strings.Split(buf.String(), "\n")
+			for _, line := range lines {
+				// Print each non-empty line with a "> " prefix.
+				if strings.TrimSpace(line) != "" {
+					fmt.Fprintf(w, "> %s\n", line)
+				} else {
+					fmt.Fprintln(w, ">")
 				}
 			}
 		}
-		if content.Len() > 0 {
-			fmt.Fprintf(w, "\n%s\n", content.String())
+	case ast.KindParagraph:
+		fmt.Fprintln(w)
+		paragraph := n.(*ast.Paragraph)
+		if paragraph.HasChildren() {
+			for c := paragraph.FirstChild(); c != nil; c = c.NextSibling() {
+				renderBaseContent(w, c, mdContent)
+			}
 		}
+		fmt.Fprintln(w)
 	default:
 		return
 	}
@@ -155,6 +165,7 @@ func renderNodeContent(w io.Writer, n ast.Node, mdContent []byte) {
 // If a list item consists solely of a single paragraph, its inline text is rendered on the same line.
 func renderList(w io.Writer, list *ast.List, mdContent []byte, indent string) {
 	index := 1
+	fmt.Fprintln(w)
 	for li := list.FirstChild(); li != nil; li = li.NextSibling() {
 		if li.Kind() == ast.KindListItem {
 			var bullet string
@@ -269,18 +280,6 @@ func RunMarkdown(mdContent []byte, startAnchor string, w io.Writer, promptFunc f
 				renderList(w, list, mdContent, "")
 			default:
 				renderNodeContent(w, n, mdContent)
-				// For paragraphs or other text, print their content.
-				// var content strings.Builder
-				// if n.HasChildren() {
-				// 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-				// 		if textNode, ok := c.(*ast.Text); ok {
-				// 			content.Write(textNode.Segment.Value(mdContent))
-				// 		}
-				// 	}
-				// }
-				// if content.Len() > 0 {
-				// 	fmt.Fprintf(w, "\n%s \n", content.String())
-				// }
 			}
 		}
 
