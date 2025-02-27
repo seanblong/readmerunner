@@ -53,7 +53,7 @@ func TestRunMain_RunModeWithExit(t *testing.T) {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	content := "# Intro\n\nWelcome to the README.\n"
+	content := "# Intro\n\nWelcome to the README.\n## Section One"
 	if _, err := tmpFile.Write([]byte(content)); err != nil {
 		t.Fatalf("Error writing to temp file: %v", err)
 	}

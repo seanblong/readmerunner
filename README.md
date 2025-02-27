@@ -44,7 +44,7 @@ a [Markdown Anchor][1] as an argument.
 
 ### Full Usage
 
-```bash
+```console
 ❯ ./readmerunner -h
 Usage: readme-runner [options] <README.md>
   -log string
@@ -110,6 +110,74 @@ Download the latest binary from the [releases page][2].
 
 > Press Enter to continue to [Building] (or type 'exit'):
 ```
+
+## Environment Variables
+
+The Readme Runner can read environment variables from you machine for use within
+the code snippets.  This can be useful for setting up credentials or other
+configurations.
+
+Similarly, the code snippets themselves can define the env variables and be passed
+onto later code.  This can be useful for defining configurations as groups and
+skipping the ones not needed (see example below).
+
+### Example: Using Variables Between Snippets
+
+You can run this example yourself by running,
+
+```console
+./readmerunner --start example-using-variables-between-snippets ./README.md
+```
+
+```bash
+foo=bar
+```
+
+```bash
+foo=baz
+```
+
+```bash
+echo $foo
+```
+
+## Prompts
+
+If a user prompt is needed, then these can't be executed within the subshell.  Instead,
+Readme Runner offers an alternative mechanism to request user input.  This is done
+by leveraging a hidden markdown command, `prompt`.
+
+Within your README file you can include lines like this that will not be seen in
+the rendered document.
+
+```markdown
+[prompt]:# (name "message" [options] default)`
+```
+
+### Example: Using Prompts
+
+You can run this example yourself by running,
+
+```console
+./readmerunner --start example-using-prompts ./README.md
+```
+
+Line 1
+Line 2
+
+Line 3
+[prompt]:# (name "What is your name?" [] "")
+
+Line 4
+
+[prompt]:# (eggprompt "Want to buy more eggs?" [yes] yes)
+
+And here
+
+```bash
+echo "Hello, $name!"
+```
+
 
 <!-- links -->
 [1]: https://gist.github.com/asabaylus/3071099
