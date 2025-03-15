@@ -14,7 +14,7 @@ and encourage better documentation.
 ### From Source
 
 ```bash
-go install github.com/seanblong/readmerunner@latest
+go install github.com/seanblong/readmerunner/readme-runner@latest
 ```
 
 ### From Binary
