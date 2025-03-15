@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/seanblong/readmerunner"
+	"github.com/seanblong/readmerunner/readme-runner"
 )
 
 // DefaultPrompt reads a line from the provided reader after printing msg.
@@ -20,11 +20,23 @@ func defaultPrompt(r *bufio.Reader, w io.Writer, msg string) string {
 	return strings.TrimSpace(input)
 }
 
+func parseInputTags(tags string) []string {
+	list := strings.Split(tags, ",")
+	for i, tag := range list {
+		list[i] = strings.TrimSpace(tag)
+	}
+	if len(list) == 1 && list[0] == "" {
+		return nil
+	}
+	return list
+}
+
 func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var (
 		tocFlag     bool
 		startAnchor string
 		logFile     string
+		tags        string
 	)
 
 	// Create a new flag set so tests can supply arguments.
@@ -35,6 +47,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.BoolVar(&tocFlag, "toc", false, "Print table of contents")
 	fs.StringVar(&startAnchor, "start", "", "Anchor text where to start in run mode")
 	fs.StringVar(&logFile, "log", "readme-runner.log", "Path to log file")
+	fs.StringVar(&tags, "tags", "", "Tags to run (comma-separated)")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintln(stderr, "Error parsing flags:", err)
 		return 1
@@ -73,7 +86,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		promptFunc := func(msg string) string {
 			return defaultPrompt(reader, stdout, msg)
 		}
-		err = readmerunner.RunMarkdown(mdContent, startAnchor, multiOut, promptFunc)
+		err = readmerunner.RunMarkdown(mdContent, startAnchor, parseInputTags(tags), multiOut, promptFunc)
 		if err != nil {
 			log.Println("Error running markdown:", err)
 			return 1

@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/text"
 )
 
 // fakePrompt returns predetermined responses from a slice.
@@ -102,7 +98,7 @@ func TestRunMarkdownCodeBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			prompt := fakePrompt(tt.promptResponses)
-			err := RunMarkdown(mdContent, "", &buf, prompt)
+			err := RunMarkdown(mdContent, "", nil, &buf, prompt)
 			if err != nil {
 				t.Errorf("RunMarkdown returned error: %v", err)
 			}
@@ -118,44 +114,26 @@ func TestRunMarkdownCodeBlock(t *testing.T) {
 	}
 }
 
-// extractCodeBlock is a helper to extract the first fenced code block from markdown.
-func extractCodeBlock(mdContent []byte) *ast.FencedCodeBlock {
-	md := goldmark.New()
-	doc := md.Parser().Parse(text.NewReader(mdContent))
-	var cb *ast.FencedCodeBlock
-	err := ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if n.Kind() == ast.KindFencedCodeBlock && entering {
-			cb = n.(*ast.FencedCodeBlock)
-			return ast.WalkStop, nil
-		}
-		return ast.WalkContinue, nil
-	})
-	if err != nil {
-		panic(err)
-	}
-	return cb
-}
-
 func TestProcessCodeBlock(t *testing.T) {
 	tc := []struct {
 		name            string
-		mdContent       []byte
+		mdContent       []string
 		promptResponses []string
 		expectedOutput  string
 	}{
-		{"Run Code Block", []byte("```bash\necho hello\n```"), []string{"r"}, "Output: hello"},
-		{"Unknown Language", []byte("```unknown\necho hello\n```"), []string{"r"}, "No runner for language: unknown"},
-		{"Missing Language", []byte("```\necho hello\n```"), []string{"r"}, "No runner for language: "},
-		{"Skip Code Block", []byte("```bash\necho hello\n```"), []string{"s"}, ""},
-		{"Exit Code Block", []byte("```bash\necho hello\n```"), []string{"x"}, ""},
+		{"Run Code Block", []string{"```bash", "echo hello", "```"}, []string{"r"}, "Output: hello"},
+		{"Unknown Language", []string{"```unknown", "echo hello", "```"}, []string{"r"}, "No runner for language: unknown"},
+		{"Missing Language", []string{"```", "echo hello", "```"}, []string{"r"}, "No runner for language: "},
+		{"Skip Code Block", []string{"```bash", "echo hello", "```"}, []string{"s"}, ""},
+		{"Exit Code Block", []string{"```bash", "echo hello", "```"}, []string{"x"}, ""},
+		{"Rerun Code Block", []string{"```bash", "echo hello", "```"}, []string{"r", "r"}, "\n> Output: hello\n\n> Output: hello\n"},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			prompt := fakePrompt(tt.promptResponses)
-			codeBlock := extractCodeBlock(tt.mdContent)
-			err := processCodeBlock(&buf, codeBlock, tt.mdContent, prompt)
+			err, _ := processCodeBlock(&buf, prompt, tt.mdContent, "")
 			if err != nil {
 				t.Errorf("processCodeBlock returned error: %v", err)
 			}
@@ -178,16 +156,16 @@ Paragraph two.
 		promptResponses []string
 		expectedOutput  string
 	}{
-		{"Exit After One", []string{"exit"}, "\n# Heading One\n\nParagraph one."},
-		{"Exit After Two", []string{"", "exit"}, "\n# Heading One\n\nParagraph one.\n\n## Heading Two\n\nParagraph two."},
-		{"Continue to End", []string{"", "", ""}, "\n# Heading One\n\nParagraph one.\n\n## Heading Two\n\nParagraph two.\n\n> README complete!\n"},
+		{"Exit After One", []string{"exit"}, "# Heading One\nParagraph one."},
+		{"Exit After Two", []string{"", "exit"}, "# Heading One\nParagraph one.\n\n## Heading Two\nParagraph two."},
+		{"Continue to End", []string{"", "", ""}, "# Heading One\nParagraph one.\n\n## Heading Two\nParagraph two.\n\n> README complete!\n"},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			prompt := fakePrompt(tt.promptResponses)
-			err := RunMarkdown(mdContent, "", &buf, prompt)
+			err := RunMarkdown(mdContent, "", nil, &buf, prompt)
 			if err != nil {
 				t.Errorf("RunMarkdown returned error: %v", err)
 			}
@@ -217,9 +195,9 @@ Oh no, a match!
 		contain         string
 		notContain      string
 	}{
-		{"Existing Anchor", "section-one", []string{"exit"}, "\n## Section One\n\nParagraph two.", "# Title"},
-		{"Matching Anchor", "subsection", []string{"exit"}, "\n## Subsection\n\nParagraph three.", "# Section One"},
-		{"Matching Anchor Plus One", "subsection", []string{"", "exit"}, "\n## Subsection\n\nParagraph three.\n\n## Subsection\n\nOh no, a match!", "# Section One"},
+		{"Existing Anchor", "section-one", []string{"exit"}, "## Section One\nParagraph two.\n", "# Title"},
+		{"Matching Anchor", "subsection", []string{"exit"}, "## Subsection\nParagraph three.\n", "# Section One"},
+		{"Matching Anchor Plus One", "subsection", []string{"", "exit"}, "## Subsection\nParagraph three.\n\n## Subsection\nOh no, a match!\n\n> README complete!\n", "# Section One"},
 		{"Non-Existing Anchor", "non-existing", []string{"exit"}, "", "# Title"},
 	}
 
@@ -227,7 +205,7 @@ Oh no, a match!
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			prompt := fakePrompt(tt.promptResponses)
-			err := RunMarkdown(mdContent, tt.startAnchor, &buf, prompt)
+			err := RunMarkdown(mdContent, tt.startAnchor, nil, &buf, prompt)
 			if err != nil {
 				t.Errorf("RunMarkdown returned error: %v", err)
 			}
@@ -262,12 +240,12 @@ No newline.
 
 	var buf bytes.Buffer
 	prompt := fakePrompt([]string{"", "exit"})
-	err := RunMarkdown(mdContent, "", &buf, prompt)
+	err := RunMarkdown(mdContent, "", nil, &buf, prompt)
 	if err != nil {
 		t.Errorf("RunMarkdown returned error: %v", err)
 	}
 	got := buf.String()
-	want := "\n# Title\n\n- item1\n  - subitem1\n  - subitem2\n\n- item2\n  1. ordered\n  2. ordered 2\n\n\nMore text.No newline.\n\n## Subheader\n\n> Quote section\n> More content\n"
+	want := "# Title\n- item1\n   - subitem1\n   - subitem2\n- item2\n  1. ordered\n  1. ordered 2\n\nMore text.\nNo newline.\n\n\n## Subheader\n\n> Quote section\n> More content\n\n> README complete!\n"
 	if got != want {
 		t.Errorf("RunMarkdown output mismatch.\nGot:\n%s\nWant:\n%s", got, want)
 	}
