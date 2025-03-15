@@ -51,6 +51,8 @@ Usage: readme-runner [options] <README.md>
         Path to log file (default "readme-runner.log")
   -start string
         Anchor text where to start in run mode
+  -tags string
+          Tags to run (comma-separated)
   -toc
         Print table of contents
 ```
@@ -163,6 +165,46 @@ You can run this example yourself by running,
 ```console
 ./readmerunner --start example-using-prompts ./README.md
 ```
+
+## Tags
+
+Tags can be used to help run specific sections of the document or to make sure
+certain sections are always run, such as setting environment variables, when using
+the `-start` flag to skip ahead.
+
+To add tags simply add a `[tags]:# (tag1 tag2)` line to the section you want to
+tag, just below the header, e.g.,
+
+```markdown
+## Section
+
+[tags]:# (tag1 tag2)
+```
+
+To run this section, you would use the `-tags` flag, e.g.,
+
+```console
+./readmerunner --tags tag1 ./README.md
+```
+
+or
+
+```console
+./readmerunner --tags tag2 ./README.md
+```
+
+or
+
+```console
+./readmerunner --tags tag1,tag2 ./README.md
+```
+
+However, supplying a tag that does not match this section, e.g., `tag3`, would skip
+the section.
+
+There's also a special tag, `always`, that will always run the section.  Sections
+tagged `always` will run even if a different tag is supplied and will run even when
+using the `-start` flag ahead of the section.
 
 <!-- links -->
 [1]: https://gist.github.com/asabaylus/3071099
