@@ -9,12 +9,14 @@ Readme Runner is a tool to traverse a README file one section at a time and opti
 execute code snippets.  It is designed to simplify executing runbooks and workflows
 and encourage better documentation.
 
+<br>
+
 ## Installing
 
 ### From Source
 
 ```bash
-go install github.com/seanblong/readmerunner/readme-runner@latest
+go install github.com/seanblong/readmerunner/readmerunner@latest
 ```
 
 ### From Binary
@@ -42,6 +44,10 @@ snippets.
 You can skip to a specific section by using the `--start` flag.  This flag takes
 a [Markdown Anchor][1] as an argument.
 
+In addition to the `start` flag you can also provide `tags` in place of, or in addition
+to, the starting point with any section tagged with `always` being run regardless
+of the tags/start provided.
+
 ### Full Usage
 
 ```bash
@@ -61,7 +67,7 @@ Usage: readme-runner [options] <README.md>
 
 Basic execution:
 
-```console
+````console
 ❯ ./readme-runner ./README.md
 
 # Readme Runner
@@ -78,14 +84,14 @@ Readme Runner is a tool to traverse a README file section by section and optiona
 ### From Source
 
 
-\`\`\`bash
-go install github.com/seanblong/embedmd@latest
-\`\`\`
+```bash
+go install github.com/seanblong/readmerunner/readmerunner@latest
+```
 
 > Run code? (r=run, s=skip, x=exit) [default s]:
 
 > Press Enter to continue to [From Binary] (or type 'exit'):
-```
+````
 
 Printing the table of contents:
 
@@ -115,7 +121,7 @@ Download the latest binary from the [releases page][2].
 
 ## Environment Variables
 
-The Readme Runner can read environment variables from you machine for use within
+The Readme Runner can read environment variables from your machine for use within
 the code snippets.  This can be useful for setting up credentials or other
 configurations.
 
@@ -153,7 +159,7 @@ Within your README file you can include lines like this that will not be seen in
 the rendered document.
 
 ```markdown
-[prompt]:# (name "message" [options] default)`
+[prompt]:# (name "message" [options] default)
 ```
 
 ### Example: Using Prompts
