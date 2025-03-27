@@ -1,6 +1,6 @@
 # Readme Runner
 
-<img align="right" hspace="30" width="200" height="200" src="./assets/readmerunner.png">
+<img align="right" hspace="30" width="100" height="100" src="./assets/readmerunner.png">
 
 [![Coverage](https://img.shields.io/badge/Coverage-83.3%25-brightgreen)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
 [![CI](https://github.com/seanblong/embedmd/actions/workflows/test.yaml/badge.svg)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
@@ -10,6 +10,8 @@
 Readme Runner is a tool to traverse a README file one section at a time and optionally
 execute code snippets.  It is designed to simplify executing runbooks and workflows
 and encourage better documentation.
+
+---
 
 ## Installing
 
