@@ -1,6 +1,6 @@
 # Readme Runner
 
-[![Coverage](https://img.shields.io/badge/Coverage-84.6%25-brightgreen)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
+[![Coverage](https://img.shields.io/badge/Coverage-83.3%25-brightgreen)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
 [![CI](https://github.com/seanblong/embedmd/actions/workflows/test.yaml/badge.svg)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/seanblong/readmerunner)](https://goreportcard.com/report/github.com/seanblong/readmerunner)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/seanblong/readmerunner/main.svg)](https://results.pre-commit.ci/latest/github/seanblong/readmerunner/main)
@@ -24,7 +24,7 @@ Download the latest binary from the [releases page][2].
 ## Building
 
 ```bash
-go build -o readmerunner .
+go build -o readme-runner .
 ```
 
 ## Usage
@@ -62,7 +62,7 @@ Usage: readme-runner [options] <README.md>
 Basic execution:
 
 ```console
-❯ ./readmerunner ./README.md
+❯ ./readme-runner ./README.md
 
 # Readme Runner
 
@@ -90,7 +90,7 @@ go install github.com/seanblong/embedmd@latest
 Printing the table of contents:
 
 ```console
-❯ ./readmerunner -toc ./README.md
+❯ ./readme-runner -toc ./README.md
 - Readme Runner (readme-runner)
   - Installing (installing)
     - From Source (from-source)
@@ -104,7 +104,7 @@ Printing the table of contents:
 Running from a specific section:
 
 ```console
-❯ ./readmerunner -start from-binary ./README.md
+❯ ./readme-runner -start from-binary ./README.md
 
 ### From Binary
 
@@ -128,7 +128,7 @@ skipping the ones not needed (see example below).
 You can run this example yourself by running,
 
 ```console
-./readmerunner --start example-using-variables-between-snippets ./README.md
+./readme-runner --start example-using-variables-between-snippets ./README.md
 ```
 
 ```bash
@@ -163,7 +163,7 @@ the rendered document.
 You can run this example yourself by running,
 
 ```console
-./readmerunner --start example-using-prompts ./README.md
+./readme-runner --start example-using-prompts ./README.md
 ```
 
 ## Tags
@@ -184,19 +184,19 @@ tag, just below the header, e.g.,
 To run this section, you would use the `-tags` flag, e.g.,
 
 ```console
-./readmerunner --tags tag1 ./README.md
+./readme-runner --tags tag1 ./README.md
 ```
 
 or
 
 ```console
-./readmerunner --tags tag2 ./README.md
+./readme-runner --tags tag2 ./README.md
 ```
 
 or
 
 ```console
-./readmerunner --tags tag1,tag2 ./README.md
+./readme-runner --tags tag1,tag2 ./README.md
 ```
 
 However, supplying a tag that does not match this section, e.g., `tag3`, would skip
@@ -205,6 +205,34 @@ the section.
 There's also a special tag, `always`, that will always run the section.  Sections
 tagged `always` will run even if a different tag is supplied and will run even when
 using the `-start` flag ahead of the section.
+
+## Verification
+
+Readme Runner provides a reserved way to execute verification steps.  Simply add
+a code fence with the language `verify` and the code snippet will be executed in
+a subshell.  The exit code of the subshell will determine if the verification
+passed or failed.  This can be used to wait for processes to complete, check
+environment variables, or any other verification step.
+
+For example, the following code snippet will always pass,
+
+````markdown
+```verify
+return 0
+```
+````
+
+Here we can use `grep` to detect if a file exists,
+
+````markdown
+```verify
+ls | grep -q README.md
+```
+````
+
+If it does we expect the exit code to be 0, if not we expect the return/exit code
+to be 1.  The verify step will prompt to rerun the verification step if it fails.
+
 
 <!-- links -->
 [1]: https://gist.github.com/asabaylus/3071099

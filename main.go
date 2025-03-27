@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/seanblong/readmerunner/readme-runner"
+	"github.com/seanblong/readmerunner/readmerunner"
 )
 
 // DefaultPrompt reads a line from the provided reader after printing msg.

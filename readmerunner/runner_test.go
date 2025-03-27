@@ -53,6 +53,32 @@ func TestBashRunnerRun(t *testing.T) {
 	}
 }
 
+func TestVerifyRunner(t *testing.T) {
+	tc := []struct {
+		name       string
+		verifyCode string
+		expected   string
+	}{
+		{"Explicit Success", "exit 0", "\x1b[32mSuccess\x1b[0m\n"},
+		{"Inferred Success", "echo hello", "\x1b[32mSuccess\x1b[0m\n"},
+		{"Exit Error Code", "exit 1", "\x1b[31mFailure [command exited with status 1]\x1b[0m\n"},
+		{"Return Error Code", "return 1", "\x1b[31mFailure [command exited with status 1]\x1b[0m\n"},
+		{"Could Not Run", "unknown-command", "\x1b[31mFailure [command exited with status 127]\x1b[0m\n"},
+	}
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			vr, _ := NewVerifyRunner()
+			output, err := vr.Run(tt.verifyCode)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if output != tt.expected {
+				t.Errorf("Expected %v, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
 func TestPrintTOC(t *testing.T) {
 	mdContent := []byte(`# Title
 ## Section One
