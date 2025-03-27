@@ -28,7 +28,7 @@ type Section struct {
 	Tags  []string
 }
 
-// getHeadingTextSimple extracts the text from a header line and prints the header
+// getHeadingText extracts the text from a header line and prints the header
 // level (number of leading #s).
 func getHeadingText(header string) (string, int) {
 	// Remove all leading #s and trim whitespace.
@@ -50,10 +50,9 @@ func getHeadingText(header string) (string, int) {
 // and replaces spaces with dashes
 func normalizeAnchor(header string) string {
 	lower := strings.ToLower(header)
-	// Remove non-alphanumeric characters (allow spaces).
 	var b strings.Builder
 	for _, r := range lower {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '-' {
 			b.WriteRune(r)
 		}
 	}
@@ -219,12 +218,23 @@ func processCodeBlock(w io.Writer, promptFunc func(string) string, code []string
 			}
 		case "x":
 			return nil, true
-		default:
-			// For any other input (including "c"), break the loop to continue to the next section.
+		case "s", "":
 			return nil, false
+		default:
+			err, exit := processCodeBlock(w, promptFunc, code, "r")
+			if err != nil {
+				return err, exit
+			}
 		}
 	case "x":
 		return nil, true
+	case "s", "":
+		return nil, false
+	default:
+		err, exit := processCodeBlock(w, promptFunc, code, "")
+		if err != nil {
+			return err, exit
+		}
 	}
 	return nil, false
 }
