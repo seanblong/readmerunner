@@ -193,7 +193,7 @@ func processCodeBlock(w io.Writer, promptFunc func(string) string, code []string
 
 	if choice == "" {
 		if runner == nil {
-			strings.ToLower(strings.TrimSpace(promptFunc("\n> No runner for this language or missing code fence language. Press Enter to continue: ")))
+			promptFunc("\n> No runner for this language or missing code fence language. Press Enter to continue: ")
 			return nil, false
 		} else {
 			choice = strings.ToLower(strings.TrimSpace(promptFunc("\n> Run code? (r=run, s=skip, x=exit) [default s]: ")))
