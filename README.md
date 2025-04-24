@@ -255,7 +255,8 @@ This can be helpful for long running processes that need to be verified before c
 
 > [!CAUTION]
 > The `verify` runner will attempt to attach to an existing subshell.  Try to only
-> use one f
+> use one runnable language per README file.  Currently the priority is `bash` then
+> `sh`/`shell`.
 
 
 <!-- links -->
