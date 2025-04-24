@@ -189,16 +189,18 @@ func processCodeBlock(w io.Writer, promptFunc func(string) string, code []string
 		language = parts[1]
 	}
 	codeText := strings.Join(code[1:len(code)-1], "\n")
+	runner := GetRunner(language)
+
 	if choice == "" {
-		choice = strings.ToLower(strings.TrimSpace(promptFunc("\n> Run code? (r=run, s=skip, x=exit) [default s]: ")))
+		if runner == nil {
+			promptFunc("\n> No runner for this language or missing code fence language. Press Enter to continue: ")
+			return nil, false
+		} else {
+			choice = strings.ToLower(strings.TrimSpace(promptFunc("\n> Run code? (r=run, s=skip, x=exit) [default s]: ")))
+		}
 	}
 	switch choice {
 	case "r":
-		runner := GetRunner(language)
-		if runner == nil {
-			fmt.Fprintf(w, "No runner for language: %s\n", language)
-			return nil, false
-		}
 		out, err := runner.Run(codeText)
 		if err != nil {
 			fmt.Fprintf(w, "\n> Error: %s", err.Error())

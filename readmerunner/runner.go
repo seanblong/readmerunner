@@ -122,16 +122,21 @@ type VerifyRunner struct {
 	runnerIO
 }
 
-// shellRunner is a singleton instance of ShellRunner.
+// verifyRunner is a singleton instance of VerifyRunner.
 var verifyRunner *VerifyRunner
 
-// NewShellRunner spawns a persistent shell.
+// NewVerifyRunner attaches to an existing shell to access variables for potential
+// verification.  If no shell exists then it creates a new one.
 func NewVerifyRunner() (*VerifyRunner, error) {
-	runner, err := newRunnerIO("bash")
-	if err != nil {
-		return nil, err
+	if bashRunner != nil {
+		return &VerifyRunner{runnerIO: bashRunner.runnerIO}, nil
+	} else if shellRunner != nil {
+		return &VerifyRunner{runnerIO: shellRunner.runnerIO}, nil
+	} else {
+		b, _ := NewBashRunner()
+		bashRunner = b
+		return &VerifyRunner{runnerIO: b.runnerIO}, nil
 	}
-	return &VerifyRunner{*runner}, nil
 }
 
 // Run executes the provided code in the persistent shell, returning "Success" or
