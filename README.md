@@ -25,7 +25,7 @@ go install github.com/seanblong/readmerunner/readmerunner@latest
 
 Download the latest binary from the [releases page][2].
 
-## Building
+### Building
 
 ```bash
 go build -o readme-runner .
@@ -64,6 +64,15 @@ Usage: readme-runner [options] <README.md>
   -toc
         Print table of contents
 ```
+
+### Supported Languages
+
+Readme Runner supports the following languages for code snippets:
+
+- `bash`
+- `sh`/`shell`
+
+It will not run empty fences or `console`.
 
 ### Examples
 
@@ -218,9 +227,11 @@ using the `-start` flag ahead of the section.
 
 Readme Runner provides a reserved way to execute verification steps.  Simply add
 a code fence with the language `verify` and the code snippet will be executed in
-a subshell.  The exit code of the subshell will determine if the verification
-passed or failed.  This can be used to wait for processes to complete, check
-environment variables, or any other verification step.
+the same `bash` or `shell` subshells used in the rest of the README.  This will
+give it access to the same environment variables and prompt responses.  The difference
+is that Readme Runner will print the response as a Success or Failure message.
+This can be used to wait for processes to complete, check environment variables
+are set and are correct, or any other verification step.
 
 For example, the following code snippet will always pass,
 
@@ -240,6 +251,11 @@ ls | grep -q README.md
 
 If it does we expect the exit code to be 0, if not we expect the return/exit code
 to be 1.  The verify step will prompt to rerun the verification step if it fails.
+This can be helpful for long running processes that need to be verified before continuing.
+
+> [!CAUTION]
+> The `verify` runner will attempt to attach to an existing subshell.  Try to only
+> use one f
 
 
 <!-- links -->
