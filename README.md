@@ -2,7 +2,7 @@
 
 <img align="right" hspace="30" width="auto" height="200" src="./assets/readmerunner.png">
 
-[![Coverage](https://img.shields.io/badge/Coverage-81.5%25-brightgreen)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
+[![Coverage](https://img.shields.io/badge/Coverage-80.6%25-brightgreen)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
 [![CI](https://github.com/seanblong/embedmd/actions/workflows/test.yaml/badge.svg)](https://github.com/seanblong/readmerunner/actions/workflows/test.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/seanblong/readmerunner)](https://goreportcard.com/report/github.com/seanblong/readmerunner)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/seanblong/readmerunner/main.svg)](https://results.pre-commit.ci/latest/github/seanblong/readmerunner/main)
