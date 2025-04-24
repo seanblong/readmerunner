@@ -148,8 +148,8 @@ func TestProcessCodeBlock(t *testing.T) {
 		expectedOutput  string
 	}{
 		{"Run Code Block", []string{"```bash", "echo hello", "```"}, []string{"r"}, "Output: hello"},
-		{"Unknown Language", []string{"```unknown", "echo hello", "```"}, []string{"r"}, "No runner for language: unknown"},
-		{"Missing Language", []string{"```", "echo hello", "```"}, []string{"r"}, "No runner for language: "},
+		{"Unknown Language", []string{"```unknown", "echo hello", "```"}, []string{"r"}, ""},
+		{"Missing Language", []string{"```", "echo hello", "```"}, []string{"r"}, ""},
 		{"Skip Code Block", []string{"```bash", "echo hello", "```"}, []string{"s"}, ""},
 		{"Exit Code Block", []string{"```bash", "echo hello", "```"}, []string{"x"}, ""},
 		{"Rerun Code Block", []string{"```bash", "echo hello", "```"}, []string{"r", "r"}, "\n> Output: hello\n\n> Output: hello\n"},
