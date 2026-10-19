@@ -13,11 +13,11 @@ repos:
       - id: destroyed-symlinks
       - id: check-symlinks
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.12.2
+    rev: v2.15.0
     hooks:
       - id: golangci-lint
   - repo: https://github.com/markdownlint/markdownlint
-    rev: v0.17.0
+    rev: v0.18.1
     hooks:
       - id: markdownlint
         exclude: ci/custom-fenced-code-blocks.md
